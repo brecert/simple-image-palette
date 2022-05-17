@@ -74,11 +74,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let palette_path = args.palette.as_path();
     let palette = match args.cache {
-        Some(ref path) => {
+        Some(ref path) if path.is_file() => {
             let mut file = fs::File::open(path)?;
             decode_from_std_read(&mut file, bincode::config::standard())?
         }
-        None => {
+        _ => {
             let files = files_in_dir(palette_path)?;
             let len = files.len() as f64;
             Palette::from(
