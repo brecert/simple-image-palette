@@ -1,3 +1,4 @@
+use bincode;
 use std::path::PathBuf;
 
 use image::{imageops::ColorMap, Rgba};
@@ -19,22 +20,52 @@ fn bad_color_distance(pixel_a: &Rgba<f32>, pixel_b: &Rgba<f32>, q: u64, qfactor:
     }
 }
 
-pub struct Palette<'a> {
-    items: Vec<(&'a PathBuf, Rgba<f32>)>,
+#[derive(PartialEq, Debug)]
+pub struct Palette {
+    items: Vec<(PathBuf, Rgba<f32>)>,
 }
 
-impl Palette<'_> {
-    pub fn nearest_color(&self, color: &Rgba<f32>) -> (&PathBuf, Rgba<f32>) {
-        *self
-            .items
-            .iter()
-            .min_by_key(|(_, palette_color)| bad_color_distance(palette_color, color, 0, 64.0))
-            .unwrap()
+impl bincode::Decode for Palette {
+    fn decode<D: bincode::de::Decoder>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let items: Vec<(PathBuf, [f32; 4])> = bincode::Decode::decode(decoder)?;
+        Ok(Palette {
+            items: items
+                .into_iter()
+                .map(|(path, color)| (path, Rgba::<f32>::from(color)))
+                .collect(),
+        })
     }
 }
 
-impl<'a> From<Vec<(&'a PathBuf, Rgba<f32>)>> for Palette<'a> {
-    fn from(items: Vec<(&'a PathBuf, Rgba<f32>)>) -> Self {
+impl bincode::Encode for Palette {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        let items: Vec<_> = self
+            .items
+            .iter()
+            .map(|(path, rgba)| (path, rgba.0))
+            .collect();
+        bincode::Encode::encode(&items, encoder)?;
+        Ok(())
+    }
+}
+
+impl Palette {
+    pub fn nearest_color(&self, color: &Rgba<f32>) -> (PathBuf, Rgba<f32>) {
+        self.items
+            .iter()
+            .min_by_key(|(_, palette_color)| bad_color_distance(palette_color, color, 0, 64.0))
+            .unwrap()
+            .clone()
+    }
+}
+
+impl<'a> From<Vec<(PathBuf, Rgba<f32>)>> for Palette {
+    fn from(items: Vec<(PathBuf, Rgba<f32>)>) -> Self {
         Palette { items }
     }
 }
@@ -47,7 +78,7 @@ fn into_u8(color: &Rgba<f32>) -> Rgba<u8> {
     Rgba::from(color.0.map(|v| (v * 255.0) as u8))
 }
 
-impl ColorMap for Palette<'_> {
+impl ColorMap for Palette {
     type Color = Rgba<u8>;
 
     fn index_of(&self, color: &Self::Color) -> usize {
