@@ -54,7 +54,7 @@ struct Args {
 
     /// the cache for palettes path
     #[argh(option)]
-    cache: Option<PathBuf>,
+    palette_cache: Option<PathBuf>,
 
     /// the scale of the image in relation to the emoji size
     #[argh(option, default = "1.0")]
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let palette_path = args.palette.as_path();
-    let palette = match args.cache {
+    let palette = match args.palette_cache {
         Some(ref path) if path.is_file() => {
             let mut file = fs::File::open(path)?;
             decode_from_std_read(&mut file, bincode::config::standard())?
@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    if let Some(path) = args.cache {
+    if let Some(path) = args.palette_cache {
         let mut file = fs::File::create(&path)?;
         encode_into_std_write(&palette, &mut file, bincode::config::standard())?;
     }
